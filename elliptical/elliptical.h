@@ -23,6 +23,7 @@
 #include <deal.II/dofs/dof_accessor.h>
 
 #include <deal.II/numerics/vector_tools.h>
+#include <deal.II/numerics/data_out.h>
 
 #include <deal.II/lac/dynamic_sparsity_pattern.h>
 #include <deal.II/lac/sparse_matrix.h>
@@ -30,11 +31,57 @@
 
 #include <iostream>
 #include <fstream>
+#include <cmath>
 
 
 namespace ELLIPTICAL
 {
 using namespace dealii;
+/////////////////////////////////////class for calculating Dirichlet Boundary Conditions/////////////////////////////////
+template <int dim>
+class DCBoundaryValueQ : public Function<dim>
+{
+	public:
+		virtual double value(const Point<2> &p)const override
+		{
+			double x = p[0];
+			double y = p[1];
+			double c = 1;
+			double value;
+			value=sin(c*M_PI*x)*sin(c*M_PI*y);
+			return value;
+		}
+};
+///////////////////////////////////////class for calculation Neumann Boundary conditions/////////////////////////////
+template <int dim>
+class NUBoundaryValueQ : public Function<dim>
+{
+	public:
+		virtual double value(const Point<2> &p)const override
+		{
+			double x = p[0],y = p[1],c = 1;
+			double value;
+			value = c*M_PI*sin(c*M_PI*(x+y));
+			return value;
+
+		}
+};
+/////////////////////////////////////class for calculating the value for f(x)///////////////////////////////////////
+template <int dim>
+class RHSValue : public Function<dim>
+{
+	public:
+		virtual double value(const Point<dim> &p)const override
+		{
+			double x = p[0];
+			double y = p[1];
+			double value,c;
+			c=1;
+			value = -2*pow(c*M_PI,2)*sin(c*M_PI*x)*sin(c*M_PI*y);
+			return value;
+		}
+
+};
 
 template <int dim>
 class elliptical
@@ -52,6 +99,8 @@ private:
 	Vector<double> flux_integral(Vector<double>,const uint,FEValues<dim>);
 	Vector<double> gradient_calc(const cell_iterator &cell,FEValues<dim>,Vector<double> q,uint,uint,uint);
 	Vector<double> value_calc(const cell_iterator &cell,FEValues<dim>,Vector<double> q,uint,uint);
+
+	void output_data();
 
 	Triangulation<dim>	tria;
 	FE_DGQ<dim>		fe;
@@ -349,6 +398,16 @@ void elliptical<dim>::run()
 	make_grid();
 	setup_system();
 	assemble_system();
+}
+
+template <int dim>
+void elliptical<dim>::output_data()
+{
+	DataOut<dim>	data_out;
+	data_out.attach_dof_handler(dof_handler);
+
+	std::ofstream output("results");
+	data_out.write_vtk(output);
 }
 
 }//end of namespace
