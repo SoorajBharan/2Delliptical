@@ -40,6 +40,7 @@ template <int dim>
 class elliptical
 {
 public:
+	using cell_iterator = typename DoFHandler<dim>::active_cell_iterator;
 	elliptical();
 	void run();
 private:
@@ -49,8 +50,8 @@ private:
 //	void solve();
 	Vector<double> volume_integral(Vector<double> q,const uint,FEValues<dim>);
 	Vector<double> flux_integral(Vector<double>,const uint,FEValues<dim>);
-	Vector<double> gradient_calc(const DoFHandler<dim>::active_cell_iterators &cell,FEValues<dim>,Vector<double> q,uint,uint,uint);
-	Vector<double> value_calc(const DoFHandler<dim>::active_cell_iterators &cell,FEValues<dim>,Vector<double> q,uint,uint);
+	Vector<double> gradient_calc(const cell_iterator &cell,FEValues<dim>,Vector<double> q,uint,uint,uint);
+	Vector<double> value_calc(const cell_iterator &cell,FEValues<dim>,Vector<double> q,uint,uint);
 
 	Triangulation<dim>	tria;
 	FE_DGQ<dim>		fe;
@@ -72,7 +73,6 @@ private:
 	Vector<double>		Q_y_flux;
 
 	int 	no_dofs;
-	const uint component_x,component_y;
 };//end of elliptical class template declaration
 
 ///////////////CONSTRUCTOR OF THE CLASS/////////////////////////////////////////
@@ -131,7 +131,7 @@ void elliptical<dim>::assemble_system()
 			  	update_gradients |
 			  	update_quadrature_points | update_JxW_values);
 
-	FEValues<dim>		fe_face_values(fe,
+	FEFaceValues<dim>		fe_face_values(fe,
 			  	face_quadrature_formula,
 			  	update_values | 
 			  	update_gradients |
@@ -225,7 +225,7 @@ Vector<double> elliptical<dim>::flux_integral(Vector<double> q, const uint n_q_p
 	Vector<double>		R;
 	R.reinit(no_dofs);
 
-	const uint 		dofs_per_cell = fe.n_dofs_per_cell();
+//	const uint 		dofs_per_cell = fe.n_dofs_per_cell();
 	Tensor<1,dim> 		grad_qL,grad_qR,grad_flux;
 
 	Vector<double>		qL,qR;
@@ -256,13 +256,13 @@ Vector<double> elliptical<dim>::flux_integral(Vector<double> q, const uint n_q_p
 			//Loop over integration points	
 			for (uint q_points = 0; q_points<n_q_points;++q_points)
 			{
-				grad_qL[0]=gradient_calc(left_cell,fe_V,q_points,dofs_per_face,0);
-				grad_qL[1]=gradient_calc(left_cell,fe_V,q_points,dofs_per_face,1);
-				grad_qR[0]=gradient_calc(right_cell,fe_V,q_points,dofs_per_face,0);
-				grad_qR[1]=gradient_calc(left_cell,fe_V,q_points,dofs_per_face,1);
+				grad_qL[0]=gradient_calc(left_cell,fe_V,q,q_points,dofs_per_face,0);
+				grad_qL[1]=gradient_calc(left_cell,fe_V,q,q_points,dofs_per_face,1);
+				grad_qR[0]=gradient_calc(right_cell,fe_V,q,q_points,dofs_per_face,0);
+				grad_qR[1]=gradient_calc(left_cell,fe_V,q,q_points,dofs_per_face,1);
 
-				qL[q_points]=value_calc(left_cell,fe_V,q_points,dofs_per_face);
-				qR[q_points]=value_calc(right_cell,fe_V,q_points,dofs_per_face);
+				qL[q_points]=value_calc(left_cell,fe_V,q,q_points,dofs_per_face);
+				qR[q_points]=value_calc(right_cell,fe_V,q,q_points,dofs_per_face);
 
 				grad_flux[0]=0.5*(grad_qR[0]+grad_qL[0]-face_normal[0]*(qR[q_points]-qL[q_points]));
 				grad_flux[1]=0.5*(grad_qR[1]+grad_qL[1]-face_normal[1]*(qR[q_points]-qL[q_points]));
@@ -305,7 +305,7 @@ Vector<double> elliptical<dim>::flux_integral(Vector<double> q, const uint n_q_p
 
 //////////////////////////////////////////FUNCTION FOR CALCULATION GRADIENT OVER THE CELL//////////////////////
 template <int dim>
-Vector<double> elliptical<dim>::gradient_calc(typename DoFHandler<dim>::active_cell_iterators &cell,FEValues<dim> fe_V, Vector<double>q,uint q_point, uint dof,uint component)
+Vector<double> elliptical<dim>::gradient_calc(const cell_iterator &cell,FEValues<dim> fe_V, Vector<double>q,uint q_point, uint dof,uint component)
 {
 	Vector<double>		grad;
 	grad.reinit(dof);
@@ -325,7 +325,7 @@ Vector<double> elliptical<dim>::gradient_calc(typename DoFHandler<dim>::active_c
 
 
 template <int dim>
-Vector<double> elliptical<dim>::value_calc(typename DoFHandler<dim>::active_cell_iterators &cell,FEValues<dim> fe_V, Vector<double>q,uint q_point, uint dof)
+Vector<double> elliptical<dim>::value_calc(const cell_iterator &cell,FEValues<dim> fe_V, Vector<double>q,uint q_point, uint dof)
 {
 	Vector<double>		grad;
 	grad.reinit(dof);
