@@ -115,11 +115,6 @@ private:
 	FullMatrix<double>	system_flux_matrix;
 
 	Vector<double>		q_sol;
-	Vector<double>		q_flux;
-	Vector<double>		Q_x_sol;
-	Vector<double>		Q_x_flux;
-	Vector<double>		Q_y_sol;
-	Vector<double>		Q_y_flux;
 
 	int 	no_dofs;
 };//end of elliptical class template declaration
@@ -150,17 +145,13 @@ void elliptical<dim>::setup_system()
 
 	DynamicSparsityPattern dsp(dof_handler.n_dofs(),
 			    	   dof_handler.n_dofs());
+	DoFTools::make_sparsity_pattern(dof_handler,dsp);
 	sparsity_pattern.copy_from(dsp);
 
 	system_mass_matrix.reinit(sparsity_pattern);
 //	system_diff_matrix.reinit(sparsity_pattern);
 	
 	q_sol.reinit(no_dofs);
-	q_flux.reinit(no_dofs);
-	Q_x_sol.reinit(no_dofs);
-	Q_x_flux.reinit(no_dofs);
-	Q_y_sol.reinit(no_dofs);
-	Q_y_flux.reinit(no_dofs);
 
 	system_diff_matrix.reinit(no_dofs,no_dofs);
 	system_flux_matrix.reinit(no_dofs,no_dofs);
