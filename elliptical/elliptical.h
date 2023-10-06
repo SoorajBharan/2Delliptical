@@ -100,6 +100,8 @@ private:
 	Vector<double> gradient_calc(const cell_iterator &cell,FEValues<dim>,Vector<double> q,uint,uint,uint);
 	Vector<double> value_calc(const cell_iterator &cell,FEValues<dim>,Vector<double> q,uint,uint);
 
+	FullMatrix<double> vector_to_matrix(const uint, FEValues<dim>,int);
+
 	void output_data();
 
 	Triangulation<dim>	tria;
@@ -111,7 +113,7 @@ private:
 //	SparseMatrix<double>	system_diff_matrix;
 //	SparseMatrix<double>	system_flux_matrix;
 		
-	FullMatrix<double>	system_diff_matrix;
+	FullMatrix<double>	system_vol_matrix;
 	FullMatrix<double>	system_flux_matrix;
 
 	Vector<double>		q_sol;
@@ -153,7 +155,7 @@ void elliptical<dim>::setup_system()
 	
 	q_sol.reinit(no_dofs);
 
-	system_diff_matrix.reinit(no_dofs,no_dofs);
+	system_vol_matrix.reinit(no_dofs,no_dofs);
 	system_flux_matrix.reinit(no_dofs,no_dofs);
 }
 
@@ -197,8 +199,8 @@ void elliptical<dim>::assemble_system()
 			{
 				for(uint j=0;j<dofs_per_cell;j++)
 				{
-					elem_mass_mat(i,j)+= fe_values.shape_value(i,q_points)*
-      								fe_values.shape_value(j,q_points)*
+					elem_mass_mat(i,j)+= fe_values.shape_value(i,q_points)*//phi(i,k)
+      								fe_values.shape_value(j,q_points)*//phi(j,k)
       								fe_values.JxW(q_points);
 				}
 			}
@@ -216,6 +218,10 @@ void elliptical<dim>::assemble_system()
 			}
 		}
 	}
+
+	system_vol_matrix=vector_to_matrix(n_q_points,fe_values,0);
+	system_flux_matrix=vector_to_matrix(n_q_points,fe_values,1);
+
 }
 
 ///////////////FUNCTION FOR FINDING VOLUME INTERGRAL IN SIPG /////////////////////
@@ -341,6 +347,32 @@ Vector<double> elliptical<dim>::flux_integral(Vector<double> q, const uint n_q_p
 	}
 	return R;
 
+}
+/////////////////////////////////////////IMPLEMENTATION OF VECTOR TO MATRIX FUNCTION////////////////////////////////////////////////////
+template <int dim>
+FullMatrix<double> elliptical<dim>::vector_to_matrix(const uint n_q_points, FEValues<dim> fe_V,int flag)
+{
+	FullMatrix<double>	M;
+	M.reinit(no_dofs,no_dofs);
+
+	Vector<double>		temp_q,R;
+	temp_q.reinit(no_dofs);
+	R.reinit(no_dofs);
+
+	for(uint i = 0; i < no_dofs; ++i)
+	{
+		temp_q=0.0;
+		temp_q[i]=1;
+		if(flag==0)
+		{R=volume_integral(temp_q,n_q_points,fe_V);}
+		else{R=flux_integral(temp_q,n_q_points,fe_V);}
+
+		for(uint m=0;m<no_dofs;++m)
+		{
+			M(m,i)=R[m];
+		}
+	}
+	return M;
 }
 
 //////////////////////////////////////////FUNCTION FOR CALCULATION GRADIENT OVER THE CELL//////////////////////
